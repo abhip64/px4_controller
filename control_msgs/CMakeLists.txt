@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(controller_msgs)
+project(control_msgs)
 
 find_package(catkin REQUIRED COMPONENTS geometry_msgs sensor_msgs message_generation std_msgs)
 
