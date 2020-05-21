@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   mavros_msgs
   mavlink
   control_msgs
+  mav_trajectory_generation
 )
 
 catkin_package(
@@ -31,10 +32,20 @@ include_directories(
 add_executable(trajectory_pub
         src/trajectoryPublisher.cpp
         src/trajectoryPublisher_node.cpp
-        src/trajectory.cpp
-        src/polynomialtrajectory.cpp
-        src/shapetrajectory.cpp
-        src/gap_traverse.cpp
+        src/eth_trajectory.cpp
+        src/flip_trajectory.cpp
 )
+
+add_executable(flip_trajectory_pub
+        src/trajectoryPublisher.cpp
+        src/eth_trajectory.cpp
+        src/flip_node.cpp
+        src/flip_trajectory.cpp
+)
+
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+
+
+add_dependencies(flip_trajectory_pub ${catkin_EXPORTED_TARGETS})
+target_link_libraries(flip_trajectory_pub ${catkin_LIBRARIES})

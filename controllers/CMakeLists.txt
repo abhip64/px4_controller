@@ -31,7 +31,11 @@ include_directories(
 )
 
 add_library(${PROJECT_NAME}
-  src/geometric_controller.cpp 
+  src/controller.cpp
+  src/eth_quat_controller.cpp
+  src/upenn_controller.cpp
+  src/math_operations.cpp 
+  src/controller_class.cpp
 )
 add_dependencies(controllers ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
@@ -39,9 +43,13 @@ target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 ############
 # BINARIES #
 ############
-add_executable(geometric_controller_node
-  src/geometric_controller_node.cpp
+add_executable(controller_node
+  src/controller_node.cpp
+  src/eth_quat_controller.cpp
+  src/upenn_controller.cpp
+  src/math_operations.cpp 
+  src/controller_class.cpp
 )
-add_dependencies(geometric_controller_node geometric_controller ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(geometric_controller_node ${PROJECT_NAME} ${catkin_LIBRARIES})
+add_dependencies(controller_node controller eth_quat_controller upenn_controller math_operations controller_class ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(controller_node ${PROJECT_NAME} ${catkin_LIBRARIES})
 
