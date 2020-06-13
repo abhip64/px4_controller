@@ -15,13 +15,13 @@ upenn_controller::upenn_controller(const ros::NodeHandle& nh): nh_(nh){
   nh_.param<double>("Kp_y", Kpos_y_, 15.0);
   nh_.param<double>("Kp_z", Kpos_z_, 15.0);
   nh_.param<double>("Kr", Kr, 12.0);
-  nh_.param<double>("Kw", Kw, 0.05);
+  nh_.param<double>("Kw", Kw, 0.25);
   nh_.param<double>("Kv_x", Kvel_x_, 10);
   nh_.param<double>("Kv_y", Kvel_y_, 10);
   nh_.param<double>("Kv_z", Kvel_z_, 10);
 
 //Gravitational Vector(NED frame)
-  g_ << 0.0, 0.0, 9.8;
+  g_ << 0.0, 0.0, 9.81;
 
 //Control Gain Matrices
   //Position Control
@@ -60,7 +60,7 @@ Eigen::Vector4d upenn_controller::pos_control(Eigen::Vector3d& pos_error, Eigen:
 
 }
 
-Eigen::Vector4d upenn_controller::vel_control(Eigen::Vector3d& vel_err, Eigen::Vector4d& mavAtt_, Eigen::Vector4d& q_des){
+Eigen::Vector4d upenn_controller::vel_control(Eigen::Vector3d& vel_err, Eigen::Vector3d& w, Eigen::Vector4d& mavAtt_, Eigen::Vector4d& q_des){
 
   const Eigen::Vector3d a_ref(0,0,0);
   
@@ -73,13 +73,13 @@ Eigen::Vector4d upenn_controller::vel_control(Eigen::Vector3d& vel_err, Eigen::V
 
   q_des = acc2quaternion(a_des, 0);
 
-  Eigen::Vector3d w(0,0,0);
+  //Eigen::Vector3d w(0,0,0);
 
   return attcontroller(q_des, a_des, mavAtt_, w, 3); //Calculate BodyRate
 
 }
 
-Eigen::Vector4d upenn_controller::flip_control(Eigen::Vector3d& vel_err, Eigen::Vector3d& acc, Eigen::Vector4d& mavAtt_, Eigen::Vector4d& q_des)
+Eigen::Vector4d upenn_controller::flip_control(Eigen::Vector3d& pos_err, Eigen::Vector3d& vel_err, Eigen::Vector3d& acc, Eigen::Vector4d& mavAtt_, Eigen::Vector4d& q_des)
 {
 
   Eigen::Vector3d a_ref = acc;
@@ -98,7 +98,7 @@ Eigen::Vector4d upenn_controller::flip_control(Eigen::Vector3d& vel_err, Eigen::
   return attcontroller(q_des, a_des, mavAtt_, w, 1); 
 }
 
-Eigen::Vector4d upenn_controller::ang_control(double& roll, double z_err, Eigen::Vector4d& mavAtt_, Eigen::Vector4d& q_des)
+Eigen::Vector4d upenn_controller::ang_control(double& roll, double z_err, Eigen::Vector3d& w, Eigen::Vector4d& mavAtt_, Eigen::Vector4d& q_des)
 {
   Eigen::Matrix3d R;
 
@@ -106,11 +106,12 @@ Eigen::Vector4d upenn_controller::ang_control(double& roll, double z_err, Eigen:
        0, cos(roll*deg_to_rad), -sin(roll*deg_to_rad),
        0, sin(roll*deg_to_rad), cos(roll*deg_to_rad) ;
 
+  //Eigen::Vector3d a_ref = R*(g_/cos(roll*deg_to_rad)) - g_;
   Eigen::Vector3d a_ref = R*g_ - g_;
 
   Eigen::Vector3d pos_error;
 
-  pos_error << 0,0,z_err;
+  pos_error << 0,0,0;
 //Acceleration feedback term based on position and velocity error
   Eigen::Vector3d a_fb = Kpos_.asDiagonal() * pos_error; 
 //Clip acceleration if reference is too large
@@ -120,7 +121,7 @@ Eigen::Vector4d upenn_controller::ang_control(double& roll, double z_err, Eigen:
 
   q_des = acc2quaternion(a_des, 0);
 
-  Eigen::Vector3d w(0,0,0);
+  //Eigen::Vector3d w(0,0,0);
 
   return attcontroller(q_des, a_des, mavAtt_, w, 1); //Calculate BodyRate
 }
@@ -161,6 +162,9 @@ Eigen::Vector4d upenn_controller::attcontroller(const Eigen::Vector4d &ref_att, 
   Eigen::Vector3d d = (Kr_.asDiagonal()*eR)/tau_ + Kw_.asDiagonal()*ew;
 
   ratecmd(0) = d(0);
+
+  //std::cout<<ratecmd(0)<<"\n";
+
   ratecmd(1) = d(1);
   ratecmd(2) = d(2);
 

@@ -20,20 +20,21 @@ controller::controller(const ros::NodeHandle& nh):
   //Current Mode of Operation of the Quadrotor
   mavstateSub_ = nh_.subscribe("/mavros/state", 10, &controller::mavstateCallback, this,ros::TransportHints().tcpNoDelay());
   //Current Position and Orientation of the Quadrotor
-  mavposeSub_  = nh_.subscribe("/mavros/local_position/pose", 10, &controller::mavposeCallback, this,ros::TransportHints().tcpNoDelay());
+  mavposeSub_  = nh_.subscribe("/mavros/local_position/pose", 50, &controller::mavposeCallback, this,ros::TransportHints().tcpNoDelay());
   //Current Linear and Angular Velocity  of the Quadorotor
-  mavtwistSub_ = nh_.subscribe("/mavros/local_position/velocity_local", 10, &controller::mavtwistCallback, this,ros::TransportHints().tcpNoDelay());
+  mavtwistSub_ = nh_.subscribe("/mavros/local_position/velocity_local", 50, &controller::mavtwistCallback, this,ros::TransportHints().tcpNoDelay());
+  imuSub_ = nh_.subscribe("/mavros/imu/data", 50, &controller::imuCallback, this,ros::TransportHints().tcpNoDelay());
 
 
 //Subscribers of reference quadrotor states
   //Reference Position, Velocity, Acceleration, Angular Velocity
-  flatreferenceSub_ = nh_.subscribe("reference/flatsetpoint", 10, &controller::flattargetCallback, this, ros::TransportHints().tcpNoDelay());
+  flatreferenceSub_ = nh_.subscribe("reference/flatsetpoint", 100, &controller::flattargetCallback, this, ros::TransportHints().tcpNoDelay());
   //Reference Yaw
   yawreferenceSub_  = nh_.subscribe("reference/yaw", 10, &controller::yawtargetCallback, this, ros::TransportHints().tcpNoDelay());
   //Roll and Pitch Setpoint
-  angleSub_         = nh_.subscribe("/trajectory/angle", 10, &controller::rptargetCallback, this, ros::TransportHints().tcpNoDelay());
+  angleSub_         = nh_.subscribe("/trajectory/angle", 100, &controller::rptargetCallback, this, ros::TransportHints().tcpNoDelay());
   //Controller Type Selection
-  controllerType_   = nh_.subscribe("/trajectory/controller_type", 10, &controller::typeCallback, this, ros::TransportHints().tcpNoDelay());
+  controllerType_   = nh_.subscribe("/trajectory/controller_type", 100, &controller::typeCallback, this, ros::TransportHints().tcpNoDelay());
 
 //Services
   //To start the trajectory generation from the trajectory generation node
@@ -55,7 +56,7 @@ controller::controller(const ros::NodeHandle& nh):
 
 //Publishers
   //Publish the angular velocities and thrust value which is used by PX4 to control the Quadrotor
-  angularVelPub_    = nh_.advertise<mavros_msgs::AttitudeTarget>("command/bodyrate_command", 10);
+  angularVelPub_    = nh_.advertise<mavros_msgs::AttitudeTarget>("command/bodyrate_command", 100);
   //Publish the reference trajectory that is to be used by RViz 
   referencePosePub_ = nh_.advertise<geometry_msgs::PoseStamped>("reference/pose", 10);
   //Publish Reference Pose for RViz visualization
@@ -64,7 +65,7 @@ controller::controller(const ros::NodeHandle& nh):
   systemstatusPub_  = nh_.advertise<mavros_msgs::CompanionProcessStatus>("/mavros/companion_process/status", 10);
   //Publishing setpoint position data for PX4 tracking
   target_pose_pub_  = nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
-  euler_ang_pub_    = nh_.advertise<control_msgs::RollPitchTarget>("/current_angle", 10);
+  euler_ang_pub_    = nh_.advertise<control_msgs::RollPitchTarget>("/current_angle", 50);
 
 //Variables addded to the ROS parameter server
   nh_.param<string>("mavname", mav_name_, "quad");
@@ -151,7 +152,11 @@ void controller::mavposeCallback(const geometry_msgs::PoseStamped& msg){
 
 void controller::mavtwistCallback(const geometry_msgs::TwistStamped& msg){  
   mavVel_  = toEigen(msg.twist.linear);
-  mavRate_ = toEigen(msg.twist.angular);
+}
+
+void controller::imuCallback(const sensor_msgs::Imu& msg)
+{
+  mavRate_ = toEigen(msg.angular_velocity);
 }
 
 bool controller::landCallback(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response) {
@@ -181,18 +186,19 @@ void controller::cmdloopCallback(const ros::TimerEvent& event){
       cmdBodyRate_ = control_tech->pos_control(pos_error, vel_error, w_error, targetAcc_, mavYaw_, mavAtt_, q_des);
     }
     else if(controller_type == 1)
-    { //mavPos_[2] - targetPos_[2]
-      cmdBodyRate_ = control_tech->ang_control(targetRoll_, 0, mavAtt_, q_des);
+    { double z_err = mavPos_[2] - targetPos_[2];
+      cmdBodyRate_ = control_tech->ang_control(targetRoll_, z_err, mavRate_, mavAtt_, q_des);
     }
     else if(controller_type == 2)
     {
       vel_error    = mavVel_;
-      cmdBodyRate_ = control_tech->vel_control(vel_error, mavAtt_, q_des);
+      cmdBodyRate_ = control_tech->vel_control(vel_error, mavRate_, mavAtt_, q_des);
     }
     else if(controller_type == 3)
     {
+      pos_error    = mavPos_ - targetPos_;
       vel_error    = mavVel_ - targetVel_;
-      cmdBodyRate_ = control_tech->flip_control(vel_error, targetAcc_, mavAtt_, q_des);
+      cmdBodyRate_ = control_tech->flip_control(pos_error, vel_error, targetAcc_, mavAtt_, q_des);
     }
     pubReferencePose(targetPos_, q_des);
     pubRateCommands(cmdBodyRate_);
@@ -211,7 +217,7 @@ void controller::cmdloopCallback(const ros::TimerEvent& event){
 
     target_pose_pub_.publish(takeoffmsg);
 
-    if(abs(mavPos_[2]-targetPos_[2])<0.1)
+    if(abs(mavPos_[2]-targetPos_[2])<0.01)
     {
       node_state = MISSION_EXECUTION;
       std_srvs::SetBool set_traj;

@@ -50,7 +50,7 @@ end.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, final_v
 vertices.push_back(end);
 
 std::vector<double> segment_times;
-const double v_max = 10.0;
+const double v_max = 20.0;
 const double a_max = 20.0;
 segment_times = estimateSegmentTimes(vertices, v_max, a_max);
 

@@ -44,7 +44,7 @@ private:
   Eigen::Vector3d p_targ, v_targ, a_targ, w_targ;
 
   double trigger_time_;
-  double take_off_height, curr_height;
+  double take_off_height, curr_height, curr_y;
 
   double pitch_angle;
 

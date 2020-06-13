@@ -30,11 +30,11 @@ fliptraj::fliptraj(const ros::NodeHandle& nh) :
 
   take_off_height = 10.0;
 
-  init_vel = 5.0;
+  init_vel = 3.0;
 
   curr_vel = init_vel;
 
-  Tc = 2*m*g; 
+  Tc = 1.5*m*g; 
 
   r = (curr_vel*curr_vel)/(Tc - g*cos(pitch_angle));
 
@@ -43,18 +43,18 @@ fliptraj::fliptraj(const ros::NodeHandle& nh) :
 //Variable Definitions
   position_.resize(2);
   position_.at(0) << 0.0, 0.0, take_off_height;
-  position_.at(1) << 5.0, 0.0, take_off_height;
+  position_.at(1) << 2.0, 0.0, take_off_height;
 
   eth_set_pos(position_.at(0),position_.at(1));
 
   velocity_.resize(2);
   velocity_.at(0) << 0.0, 0.0, 0.0;
-  velocity_.at(1) << init_vel, 0.0, 0.0;
+  velocity_.at(1) << init_vel, 0.0, 1.0;
   eth_set_vel(velocity_.at(0), velocity_.at(1));
 
   T.resize(2);
   T.at(0) = 5;
-  T.at(1) = 10;
+  T.at(1) = 0.5;
     
   p_targ = position_.at(0);
   v_targ = velocity_.at(0);
@@ -79,7 +79,7 @@ void fliptraj::updateReference() {
   motion_selector_ = 3;
   this->flip_traj_generate();
   }
-  else if(trigger_time_ > (T.at(0) + T.at(1) + 1))
+  else if(trigger_time_ > (T.at(0) + T.at(1)))
   {
   motion_selector_ = 2;
   }
@@ -114,9 +114,9 @@ void fliptraj::pubflatvelocity()
 
   msg.header.stamp = ros::Time::now();
   msg.header.frame_id = "map";
-  msg.position.x = 0;
-  msg.position.y = 0;
-  msg.position.z = 0;
+  msg.position.x = p_targ(0);
+  msg.position.y = p_targ(1);
+  msg.position.z = p_targ(2);
   msg.velocity.x = v_targ(0);
   msg.velocity.y = v_targ(1);
   msg.velocity.z = v_targ(2);
@@ -162,16 +162,18 @@ void fliptraj::flip_traj_generate()
 {
 	pitch_angle += (curr_vel*0.01)/r;
 
-  curr_vel = v_mav_.norm();
+  //curr_vel = v_mav_.norm();
 
-  //std::cout<<curr_vel<<"  "<<(curr_vel*curr_vel)/2 + g*(curr_height - take_off_height)<<"\n";
+  //std::cout<<energy - g*(curr_height - take_off_height)<<"\n";
 
-	curr_vel = pow(2*std::max(0.0,(energy - g*(curr_height - take_off_height))),0.5);
+	curr_vel = pow(2*std::max(0.2,(energy - g*(curr_height - take_off_height))),0.5);
 
 
 	v_targ << curr_vel*cos(pitch_angle), 0, curr_vel*sin(pitch_angle);
 
-	a_targ << Tc*sin(pitch_angle), 0, Tc*cos(pitch_angle) - g;
+	a_targ << Tc*sin(pitch_angle), 0, (Tc*cos(pitch_angle)) - g;
+
+  p_targ = p_targ + Eigen::Vector3d(0.01*v_targ[0],0,0.01*v_targ[2]);
 
 	r = (curr_vel*curr_vel)/(Tc - g*cos(pitch_angle));
 }
@@ -192,6 +194,7 @@ bool fliptraj::triggerCallback(std_srvs::SetBool::Request &req, std_srvs::SetBoo
 
 void fliptraj::mavposeCallback(const geometry_msgs::PoseStamped& msg){
 
+  curr_y      = msg.pose.position.y;
   curr_height = msg.pose.position.z;
 
 }

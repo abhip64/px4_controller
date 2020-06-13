@@ -11,9 +11,9 @@ trajectoryPublisher::trajectoryPublisher(const ros::NodeHandle& nh) :
 
 //Publisher
   trajectoryPub_    = nh_.advertise<nav_msgs::Path>("/trajectory_publisher/trajectory", 10);
-  flatreferencePub_ = nh_.advertise<control_msgs::FlatTarget>("reference/flatsetpoint", 10);
-  controllertype_   = nh_.advertise<std_msgs::Int8>("/trajectory/controller_type",10);
-  anglePub_         = nh_.advertise<control_msgs::RollPitchTarget>("/trajectory/angle",10);
+  flatreferencePub_ = nh_.advertise<control_msgs::FlatTarget>("reference/flatsetpoint", 100);
+  controllertype_   = nh_.advertise<std_msgs::Int8>("/trajectory/controller_type",100);
+  anglePub_         = nh_.advertise<control_msgs::RollPitchTarget>("/trajectory/angle",100);
 
 //Timers
   trajloop_timer_ = nh_.createTimer(ros::Duration(0.1), &trajectoryPublisher::loopCallback, this);
@@ -28,25 +28,24 @@ trajectoryPublisher::trajectoryPublisher(const ros::NodeHandle& nh) :
 //Variable Definitions
   position_.resize(2);
   position_.at(0) << 0.0, 0.0, take_off_height;
-  position_.at(1) << 5.0, 0.0, 12.0;
+  position_.at(1) << 5.0, 0.0, 10.0;
   eth_set_pos(position_.at(0),position_.at(1));
 
   velocity_.resize(2);
   velocity_.at(0) << 0.0, 0.0, 0.0;
-  velocity_.at(1) << 3.0, 0.0, 5.0;
+  velocity_.at(1) << 3.0, 0.0, 0.0;
   eth_set_vel(velocity_.at(0), velocity_.at(1));
 
   T.resize(2);
-  T.at(1) = 0.5;
+  T.at(1) = 0.6;
     
   p_targ = position_.at(0);
   v_targ = velocity_.at(0);
 
-  roll_angle  = -80.0;
+  roll_angle  =  -40.0;
   pitch_angle =   0.0;
 
   T.at(0) = eth_trajectory_init();
-
 }
 
 void trajectoryPublisher::updateReference() {
@@ -119,9 +118,16 @@ void trajectoryPublisher::anglerefState()
 {
   control_msgs::RollPitchTarget ang_sp;
 
+  double dt = ((curr_time_ - start_time_).toSec() - T.at(0));
+
   ang_sp.header.stamp = ros::Time::now();
   ang_sp.header.frame_id = "map";
-  ang_sp.roll = roll_angle;
+
+  //if(dt<(T.at(1)/2))
+  //  ang_sp.roll = 2*roll_angle*dt/(T.at(1));
+  //else
+    ang_sp.roll = roll_angle;
+  
   ang_sp.pitch = pitch_angle;
 
   typepublish();

@@ -68,6 +68,7 @@ class controller
     ros::Subscriber yawreferenceSub_;
     ros::Subscriber angleSub_;
     ros::Subscriber controllerType_;
+    ros::Subscriber imuSub_;
 
 
 
@@ -129,6 +130,7 @@ class controller
     void statusloopCallback(const ros::TimerEvent& event);
     void rptargetCallback(const control_msgs::RollPitchTarget&);
     void typeCallback(const std_msgs::Int8&);
+    void imuCallback(const sensor_msgs::Imu&);
 
     bool ctrltriggerCallback(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
     bool landCallback(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response);
