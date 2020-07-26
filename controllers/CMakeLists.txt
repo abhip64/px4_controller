@@ -36,6 +36,8 @@ add_library(${PROJECT_NAME}
   src/upenn_controller.cpp
   src/math_operations.cpp 
   src/controller_class.cpp
+  src/euler_controller.cpp
+  #src/smc_controller.cpp
 )
 add_dependencies(controllers ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
@@ -49,7 +51,10 @@ add_executable(controller_node
   src/upenn_controller.cpp
   src/math_operations.cpp 
   src/controller_class.cpp
+  src/euler_controller.cpp
+  #src/smc_controller.cpp
+  #src/controller.cpp
 )
-add_dependencies(controller_node controller eth_quat_controller upenn_controller math_operations controller_class ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(controller_node controller euler_controller eth_quat_controller upenn_controller math_operations controller_class ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(controller_node ${PROJECT_NAME} ${catkin_LIBRARIES})
 

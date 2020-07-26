@@ -34,7 +34,7 @@ fliptraj::fliptraj(const ros::NodeHandle& nh) :
 
   curr_vel = init_vel;
 
-  Tc = 1.5*m*g; 
+  Tc = 1.1*m*g; 
 
   r = (curr_vel*curr_vel)/(Tc - g*cos(pitch_angle));
 
@@ -43,18 +43,18 @@ fliptraj::fliptraj(const ros::NodeHandle& nh) :
 //Variable Definitions
   position_.resize(2);
   position_.at(0) << 0.0, 0.0, take_off_height;
-  position_.at(1) << 2.0, 0.0, take_off_height;
+  position_.at(1) << 0.0, 0.0, take_off_height;
 
   eth_set_pos(position_.at(0),position_.at(1));
 
   velocity_.resize(2);
   velocity_.at(0) << 0.0, 0.0, 0.0;
-  velocity_.at(1) << init_vel, 0.0, 1.0;
+  velocity_.at(1) <<  0.0, init_vel, 0.0;
   eth_set_vel(velocity_.at(0), velocity_.at(1));
 
   T.resize(2);
   T.at(0) = 5;
-  T.at(1) = 0.5;
+  T.at(1) = 1.1;
     
   p_targ = position_.at(0);
   v_targ = velocity_.at(0);
@@ -74,12 +74,13 @@ void fliptraj::updateReference() {
   w_targ = eth_trajectory_angvel(trigger_time_);
   a_targ = eth_trajectory_acc(trigger_time_);
   }
-  else if(trigger_time_ < (T.at(0) + T.at(1)))
-  {
-  motion_selector_ = 3;
-  this->flip_traj_generate();
-  }
-  else if(trigger_time_ > (T.at(0) + T.at(1)))
+//  else if(trigger_time_ < (T.at(0) + T.at(1)))
+//  {
+//  motion_selector_ = 3;
+//  this->flip_traj_generate();
+//  }
+//  else if(trigger_time_ > (T.at(0) + T.at(1)))
+  else
   {
   motion_selector_ = 2;
   }
@@ -160,11 +161,14 @@ void fliptraj::refCallback(const ros::TimerEvent& event){
 
 void fliptraj::flip_traj_generate()
 {
-	pitch_angle += (curr_vel*0.01)/r;
+//	pitch_angle += (curr_vel*0.01)/r;
 
+  pitch_angle += 0.06;
+
+  std::cout<<pitch_angle<<"\n";
   //curr_vel = v_mav_.norm();
 
-  //std::cout<<energy - g*(curr_height - take_off_height)<<"\n";
+  //std::cout<<curr_vel<<"\n";
 
 	curr_vel = pow(2*std::max(0.2,(energy - g*(curr_height - take_off_height))),0.5);
 

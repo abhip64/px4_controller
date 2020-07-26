@@ -28,28 +28,31 @@ trajectoryPublisher::trajectoryPublisher(const ros::NodeHandle& nh) :
 //Variable Definitions
   position_.resize(2);
   position_.at(0) << 0.0, 0.0, take_off_height;
-  position_.at(1) << 5.0, 0.0, 10.0;
+  position_.at(1) << 5.0, 5.0, 12.0;
+  //position_.at(1) << 1.0, 0.0, 10.0;
   eth_set_pos(position_.at(0),position_.at(1));
 
   velocity_.resize(2);
   velocity_.at(0) << 0.0, 0.0, 0.0;
-  velocity_.at(1) << 3.0, 0.0, 0.0;
+  velocity_.at(1) << 1.0, 0.0, 0.0;
+  //velocity_.at(1) << 0.0, 0.0, 0.0;
   eth_set_vel(velocity_.at(0), velocity_.at(1));
 
   T.resize(2);
-  T.at(1) = 0.6;
+  T.at(1) = 5.0;
     
   p_targ = position_.at(0);
   v_targ = velocity_.at(0);
 
-  roll_angle  =  -40.0;
-  pitch_angle =   0.0;
+  roll_angle  =  5.0;
+  pitch_angle =  0.0;
 
   T.at(0) = eth_trajectory_init();
+  //T.at(0) = 5;
 }
 
 void trajectoryPublisher::updateReference() {
-  curr_time_ = ros::Time::now();
+  
   trigger_time_ = (curr_time_ - start_time_).toSec();
 
   if((trigger_time_ < T.at(0)))
@@ -59,10 +62,10 @@ void trajectoryPublisher::updateReference() {
   w_targ = eth_trajectory_angvel(trigger_time_);
   a_targ = eth_trajectory_acc(trigger_time_);
   }
-  else if(trigger_time_ < (T.at(0) + T.at(1)))
-  {
-  motion_selector_ = 1;
-  }
+  //else if(trigger_time_ < (T.at(0) + T.at(1)))
+  //{
+  //motion_selector_ = 1;
+  //}
   else
   {
   motion_selector_ = 2;
@@ -84,7 +87,7 @@ void trajectoryPublisher::pubrefTrajectory(int selector){
 void trajectoryPublisher::pubflatrefState(){
   control_msgs::FlatTarget msg;
 
-  msg.header.stamp = ros::Time::now();
+  msg.header.stamp = curr_time_;
   msg.header.frame_id = "map";
   msg.position.x = p_targ(0);
   msg.position.y = p_targ(1);
@@ -146,6 +149,7 @@ void trajectoryPublisher::typepublish()
 
 void trajectoryPublisher::refCallback(const ros::TimerEvent& event){
   //Fast Loop publishing reference states
+  curr_time_ = ros::Time::now();
   if(publish_data)
   {
     updateReference();

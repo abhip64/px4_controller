@@ -35,6 +35,8 @@
 #include <std_srvs/SetBool.h>
 
 #include "controllers/eth_quat_controller.h"
+#include "controllers/euler_controller.h"
+//#include "controllers/lqr_controller.h"
 #include "controllers/upenn_controller.h"
 #include "controllers/controller_class.h"
 #include "controllers/math_operations.h"
@@ -70,15 +72,13 @@ class controller
     ros::Subscriber controllerType_;
     ros::Subscriber imuSub_;
 
-
-
     ros::Publisher angularVelPub_, target_pose_pub_, referencePosePub_;
     ros::Publisher posehistoryPub_;
     ros::Publisher euler_ang_pub_;
     ros::Publisher systemstatusPub_;
     ros::ServiceClient arming_client_;
     ros::ServiceClient set_mode_client_;
-    ros::ServiceClient start_traj_client_;
+    ros::ServiceClient start_traj_client_, start_ilc_pub_;
     ros::ServiceServer ctrltriggerServ_;
     ros::ServiceServer land_service_;
     ros::Timer cmdloop_timer_, statusloop_timer_;
@@ -159,6 +159,8 @@ class controller
     bool received_home_pose;
 
     std::shared_ptr<control_class> control_tech;
+
+    ros::Time start_time, current_time;
 
   public:
 

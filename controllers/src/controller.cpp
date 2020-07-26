@@ -16,6 +16,8 @@ controller::controller(const ros::NodeHandle& nh):
   landing_commanded_(false),
   node_state(WAITING_FOR_HOME_POSE),exec_cont(0){
 
+  //start_time = ros::Time::now();
+
 //Subscribers of current Quadrotor states
   //Current Mode of Operation of the Quadrotor
   mavstateSub_ = nh_.subscribe("/mavros/state", 10, &controller::mavstateCallback, this,ros::TransportHints().tcpNoDelay());
@@ -47,6 +49,8 @@ controller::controller(const ros::NodeHandle& nh):
   set_mode_client_   = nh_.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
   //To call the land service of the Quadrotor
   land_service_      = nh_.advertiseService("land", &controller::landCallback, this);
+
+  start_ilc_pub_     = nh_.serviceClient<std_srvs::SetBool>("start_ilc");
 
 //Timers for constant loop rate
   //Calls the controller loop
@@ -93,6 +97,10 @@ controller::controller(const ros::NodeHandle& nh):
   control_tech = std::make_shared<eth_controller>(nh_);
   else if(exec_cont == 1)
   control_tech = std::make_shared<upenn_controller>(nh_);
+  else if(exec_cont == 2)
+  control_tech = std::make_shared<euler_controller>(nh_);
+  //else if(exec_cont == 3)
+  //control_tech = std::make_shared<lqr_controller>(nh_);
 
 }
 
@@ -136,7 +144,12 @@ void controller::mavposeCallback(const geometry_msgs::PoseStamped& msg){
       home_pose_ = msg.pose;
       ROS_INFO_STREAM("Home pose initialized to: " << home_pose_);
   }
+  current_time = msg.header.stamp;
+  
+  //std::cout<<current_time.toSec()<<"\n";
+
   mavPos_ = toEigen(msg.pose.position);
+  
   mavAtt_(0) = msg.pose.orientation.w;
   mavAtt_(1) = msg.pose.orientation.x;
   mavAtt_(2) = msg.pose.orientation.y;
@@ -148,6 +161,7 @@ void controller::mavposeCallback(const geometry_msgs::PoseStamped& msg){
   euler_ang.pitch = euler_angle[1]*rad_to_deg;
 
   euler_ang_pub_.publish(euler_ang);
+  
 }
 
 void controller::mavtwistCallback(const geometry_msgs::TwistStamped& msg){  
@@ -172,7 +186,8 @@ void controller::cmdloopCallback(const ros::TimerEvent& event){
       break;
 
   case MISSION_EXECUTION:
-  {
+{
+
     Eigen::Vector3d pos_error;
     Eigen::Vector3d vel_error;
     Eigen::Vector3d w_error;
@@ -181,9 +196,9 @@ void controller::cmdloopCallback(const ros::TimerEvent& event){
     {
       pos_error = mavPos_ - targetPos_;
       vel_error = mavVel_ - targetVel_;
-      w_error   = mavRate_ - targetW_;
+      //w_error   = mavRate_ - targetW_;
 
-      cmdBodyRate_ = control_tech->pos_control(pos_error, vel_error, w_error, targetAcc_, mavYaw_, mavAtt_, q_des);
+      cmdBodyRate_ = control_tech->pos_control(pos_error, mavVel_, targetVel_, mavRate_, targetW_, targetAcc_, mavYaw_, mavAtt_, q_des);
     }
     else if(controller_type == 1)
     { double z_err = mavPos_[2] - targetPos_[2];
@@ -204,9 +219,12 @@ void controller::cmdloopCallback(const ros::TimerEvent& event){
     pubRateCommands(cmdBodyRate_);
     appendPoseHistory();
     pubPoseHistory();
+ 
     break;
 }
   case TAKE_OFF: {
+
+    //current_time = (ros::Time::now() - start_time).toSec();
 
     geometry_msgs::PoseStamped takeoffmsg;
     takeoffmsg.header.stamp = ros::Time::now();
@@ -217,13 +235,17 @@ void controller::cmdloopCallback(const ros::TimerEvent& event){
 
     target_pose_pub_.publish(takeoffmsg);
 
-    if(abs(mavPos_[2]-targetPos_[2])<0.01)
+//    if((abs(mavPos_[2]-targetPos_[2])<0.01)&&(current_time.toSec()>20.0))
+    if((current_time.toSec()>20.0))
     {
       node_state = MISSION_EXECUTION;
+      
       std_srvs::SetBool set_traj;
       set_traj.request.data = true;
       set_traj.response.success = true;
+
       start_traj_client_.call(set_traj);
+      //start_ilc_pub_.call(set_traj);
     }
     ros::spinOnce();
     break;

@@ -80,11 +80,11 @@ Eigen::Vector3d quat2euler(const Eigen::Vector4d& q)
   double q2 = q[2];
   double q3 = q[3];
 
-  euler_ang[0] = atan2(2*(q0*q1 + q2*q3),(1 - (q1*q1 + q2*q2)));
+  euler_ang[0] = atan2(2*(q0*q1 + q2*q3),(1 - 2*(q1*q1 + q2*q2)));
 
   euler_ang[1] = asin(2*(q0*q2 - q1*q3));
 
-  euler_ang[2] = atan2(2*(q0*q3 + q1*q2),(1 - (q2*q2 + q3*q3)));
+  euler_ang[2] = atan2(2*(q0*q3 + q1*q2),(1 - 2*(q2*q2 + q3*q3)));
 
   return euler_ang;
 

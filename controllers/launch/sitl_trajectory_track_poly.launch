@@ -10,6 +10,7 @@
   <arg name="log_output" default="screen" />
   <arg name="fcu_protocol" default="v2.0" />
   <arg name="respawn_mavros" default="false" />
+  <arg name="gazebo_gui" default="false" />
   
   <node pkg="controllers" type="controller_node" name="controllers" output="screen">
   		<param name="mav_name" type="string" value="$(arg mav_name)" />
@@ -46,9 +47,11 @@
       <node type="rviz" name="rviz" pkg="rviz" args="-d $(find controllers)/launch/config_file.rviz" />
   </group>
 
+  <node name="ilc_controller" pkg="controllers" type="ilc_control.py" output="screen" args="NINE"/>
+
   <!--node pkg="geometric_controller" name="plot_save" type="plot_save.py" output="screen"/-->
 
-   <node pkg="rosbag" type="record" name="rosbag_data" respawn="true" output="screen" args="-o $(find controllers)/bags/pose_data /mavros/local_position/pose /reference/flatsetpoint /mavros/target_actuator_control /mavros/local_position/velocity_local /current_angle
+   <node pkg="rosbag" type="record" name="rosbag_data" respawn="true" output="screen" args="-o /home/abhip/DATA/BAG /mavros/local_position/pose /reference/flatsetpoint /mavros/local_position/velocity_local /mavros/setpoint_raw/attitude
 " />
 
 </launch>

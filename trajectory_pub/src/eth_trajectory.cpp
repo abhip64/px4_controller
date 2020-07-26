@@ -33,7 +33,7 @@ double eth_trajectory_init()
 mav_trajectory_generation::Vertex::Vector vertices;
 const int dimension = 3;
 const int derivative_to_optimize = mav_trajectory_generation::derivative_order::SNAP;
-mav_trajectory_generation::Vertex start(dimension), middle(dimension), end(dimension);
+mav_trajectory_generation::Vertex start(dimension), middle(dimension), end(dimension), flip_node1(dimension), flip_node2(dimension), flip_node3(dimension);
 
 get_mid_pos_vel();
 
@@ -41,23 +41,72 @@ start.makeStartOrEnd(init_pos, derivative_to_optimize);
 start.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, init_vel);
 vertices.push_back(start);
 
-//middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, mid_pos);
-//middle.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, mid_vel);
-//vertices.push_back(middle);
+Eigen::Matrix3d R;
 
-end.makeStartOrEnd(final_pos, derivative_to_optimize);
-end.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, final_vel);
-vertices.push_back(end);
 
+  R << 1, 0                   , 0                ,
+       0, cos(90*M_PI/180.0), -sin(90*M_PI/180.0),
+       0, sin(90*M_PI/180.0), cos(90*M_PI/180.0) ;
+
+  Eigen::Vector3d g_(0.0, 0.0, 9.81);
+
+  Eigen::Vector3d final_acc = R*g_ - g_;
+
+  middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, final_pos);
+  middle.addConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, final_acc);
+  vertices.push_back(middle);
+
+  Eigen::Vector3d vel_end(0.0,0.0,0.0);
+  Eigen::Vector3d pos_end(8.0,0.0,10.0);
+
+  end.makeStartOrEnd(pos_end, derivative_to_optimize); 
+  end.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, vel_end);
+  vertices.push_back(end);
+
+
+////////////////////////////////////////////////////////////////////////////////////////////
+//FOR FLIP
+/*
+  //middle.makeStartOrEnd(final_pos, derivative_to_optimize); 
+  middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, final_pos);
+  //vertices.push_back(middle);
+
+  Eigen::Matrix3d R;
+  Eigen::Vector3d final_acc;
+  Eigen::Vector3d g_(0.0, 0.0, 9.81);
+
+  R << 1, 0                 ,  0                  ,
+       0, cos(180*M_PI/180.0), -sin(180*M_PI/180.0),
+       0, sin(180*M_PI/180.0), cos(180*M_PI/180.0) ;
+
+  final_pos << 0, 0, 13;
+  final_acc = R*g_ - g_;
+
+  //flip_node.addConstraint(mav_trajectory_generation::derivative_order::POSITION, final_pos);
+  flip_node1.addConstraint(mav_trajectory_generation::derivative_order::POSITION, final_pos); 
+  flip_node1.addConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, final_acc);
+  vertices.push_back(flip_node1);
+
+
+  final_pos << 0, 0.0, 10.0;
+  final_acc << 0, 0, 0;
+  //flip_node.addConstraint(mav_trajectory_generation::derivative_order::POSITION, final_pos);
+  end.makeStartOrEnd(final_pos, derivative_to_optimize);
+  end.addConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, final_acc); 
+  vertices.push_back(end);
+*/
+/////////////////////////////////////////////////////////////////////////////////////////
+  
 std::vector<double> segment_times;
 const double v_max = 20.0;
-const double a_max = 20.0;
+const double a_max = 10.0;
 segment_times = estimateSegmentTimes(vertices, v_max, a_max);
 
 for(int i=0;i<segment_times.size();i++)
 	T_ += segment_times.at(i);
 
 const int N = 10;
+//const int N = 6;
 mav_trajectory_generation::PolynomialOptimization<N> opt(dimension);
 opt.setupFromVertices(vertices, segment_times, derivative_to_optimize);
 opt.solveLinear();

@@ -10,14 +10,14 @@ eth_controller::eth_controller(const ros::NodeHandle& nh): nh_(nh){
   nh_.param<double>("drag_dy", Dy_, 0.0);
   nh_.param<double>("drag_dz", Dz_, 0.0);
 
-  nh_.param<double>("normalizedthrust_constant", norm_thrust_const_, 0.04); // 1 / max acceleration
+  nh_.param<double>("normalizedthrust_constant", norm_thrust_const_, 0.040); // 1 / max acceleration
   nh_.param<double>("normalizedthrust_offset", norm_thrust_offset_, 0.0); // 1 / max acceleration
   nh_.param<double>("Kp_x", Kpos_x_, 15.0);
   nh_.param<double>("Kp_y", Kpos_y_, 15.0);
   nh_.param<double>("Kp_z", Kpos_z_, 15.0);
-  nh_.param<double>("Kv_x", Kvel_x_, 10);
-  nh_.param<double>("Kv_y", Kvel_y_, 10);
-  nh_.param<double>("Kv_z", Kvel_z_, 10);
+  nh_.param<double>("Kv_x", Kvel_x_, 10.0);
+  nh_.param<double>("Kv_y", Kvel_y_, 10.0);
+  nh_.param<double>("Kv_z", Kvel_z_, 10.0);
 
 //Gravitational Vector(NED frame)
   g_ << 0.0, 0.0, 9.81;
@@ -30,7 +30,7 @@ eth_controller::eth_controller(const ros::NodeHandle& nh): nh_(nh){
   //Velocity Control
   Kvel_ << -Kvel_x_, -Kvel_y_, -Kvel_z_;
 
-  Ki_ << 0, 0, -Kz_i;
+  Ki_ << 0, 0, 0;
 
   Ai  << 0, 0, 0;
   
@@ -43,14 +43,14 @@ eth_controller::~eth_controller() {
   //Destructor
 }
 
-Eigen::Vector4d eth_controller::pos_control(Eigen::Vector3d& pos_error, Eigen::Vector3d& vel_error, Eigen::Vector3d& w_error, Eigen::Vector3d& targetAcc_, double& mavYaw_, Eigen::Vector4d& mavAtt_, Eigen::Vector4d& q_des){
+Eigen::Vector4d eth_controller::pos_control(Eigen::Vector3d& pos_error, Eigen::Vector3d& vel, Eigen::Vector3d& targetVel_, Eigen::Vector3d& w, Eigen::Vector3d& wd, Eigen::Vector3d& targetAcc_, double& mavYaw_, Eigen::Vector4d& mavAtt_, Eigen::Vector4d& q_des){
 
   const Eigen::Vector3d a_ref = targetAcc_;
 
   Ai += Ki_.asDiagonal()*pos_error;
 
   //std::cout<<Ai<<"\n";
-
+  Eigen::Vector3d vel_error = vel - targetVel_;
 //Acceleration feedback term based on position and velocity error
   Eigen::Vector3d a_fb = Kpos_.asDiagonal() * pos_error + Kvel_.asDiagonal() * vel_error + Ai; 
 //Clip acceleration if reference is too large
@@ -62,7 +62,7 @@ Eigen::Vector4d eth_controller::pos_control(Eigen::Vector3d& pos_error, Eigen::V
 
   //std::cout<<"POS"<<"\n";
 
-  return attcontroller(q_des, a_des, mavAtt_, w_error, 0.1); //Calculate BodyRate
+  return attcontroller(q_des, a_des, mavAtt_, w, wd, 0.08); //Calculate BodyRate
 
 }
 
@@ -80,9 +80,9 @@ Eigen::Vector4d eth_controller::vel_control(Eigen::Vector3d& vel_err, Eigen::Vec
 
   q_des = acc2quaternion(a_des, 0);
 
-  //Eigen::Vector3d w(0,0,0);
+  Eigen::Vector3d wd(0,0,0);
 
-  return attcontroller(q_des, a_des, mavAtt_, w, 0.35); 
+  return attcontroller(q_des, a_des, mavAtt_, w, wd, 0.35); 
 }
 
 Eigen::Vector4d eth_controller::flip_control(Eigen::Vector3d& pos_err, Eigen::Vector3d& vel_err, Eigen::Vector3d& acc, Eigen::Vector4d& mavAtt_, Eigen::Vector4d& q_des)
@@ -101,11 +101,11 @@ Eigen::Vector4d eth_controller::flip_control(Eigen::Vector3d& pos_err, Eigen::Ve
   
   q_des = acc2quaternion(a_des, 0);
 
- Eigen::Vector3d w(0,0,0);
+ Eigen::Vector3d w(0,0,0), wd(0,0,0);
 
   //std::cout<<"FLIP"<<"\n";
 
-  return attcontroller(q_des, a_des, mavAtt_, w, 0.1); 
+  return attcontroller(q_des, a_des, mavAtt_, w, wd, 0.08); 
 }
 
 Eigen::Vector4d eth_controller::ang_control(double& roll, double z_err, Eigen::Vector3d& w, Eigen::Vector4d& mavAtt_, Eigen::Vector4d& q_des)
@@ -131,9 +131,9 @@ Eigen::Vector4d eth_controller::ang_control(double& roll, double z_err, Eigen::V
 
   q_des = acc2quaternion(a_des, 0);
 
-  //Eigen::Vector3d w(0,0,0);
+  Eigen::Vector3d wd(0,0,0);
 
-  return attcontroller(q_des, a_des, mavAtt_, w, 0.15); //Calculate BodyRate
+  return attcontroller(q_des, a_des, mavAtt_, w, wd, 0.08); //Calculate BodyRate
 }
 
 Eigen::Vector4d eth_controller::acc2quaternion(const Eigen::Vector3d vector_acc, double yaw) 
@@ -156,7 +156,7 @@ Eigen::Vector4d eth_controller::acc2quaternion(const Eigen::Vector3d vector_acc,
 }
 
 
-Eigen::Vector4d eth_controller::attcontroller(const Eigen::Vector4d &ref_att, const Eigen::Vector3d &ref_acc, Eigen::Vector4d &curr_att, Eigen::Vector3d& ew, double attctrl_tau_)
+Eigen::Vector4d eth_controller::attcontroller(const Eigen::Vector4d &ref_att, const Eigen::Vector3d &ref_acc, Eigen::Vector4d &curr_att, Eigen::Vector3d& w, Eigen::Vector3d& wd, double attctrl_tau_)
 {
   Eigen::Vector4d ratecmd;
   Eigen::Vector4d qe, q_inv, inverse;
